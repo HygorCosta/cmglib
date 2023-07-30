@@ -77,12 +77,11 @@ class Report:
         if not rwo_file:
             rwo_file = self.basename.rwo
         with open(rwo_file, 'r+', encoding='UTF-8') as rwo:
-            return pd.read_csv(rwo, sep="\t", index_col=False,
+            self.rwo = pd.read_csv(rwo, sep="\t", index_col=False,
                                     usecols=np.r_[:5], skiprows=np.r_[0, 1, 3:6])
 
     def add_cash_flow(self, prices):
-        prod = self.read_rwo()
-        prod = prod.rename(
+        self.rwo = self.rwo.rename(
                 columns={
                     'TIME': 'time',
                     'Period Oil Production - Monthly SC': "oil_prod",
@@ -91,16 +90,19 @@ class Report:
                     'Period Water Production - Monthly SC.1': "water_inj"
                 }
             )
-        production = prod.loc[:, ['oil_prod',
+        production = self.rwo.loc[:, ['oil_prod',
                                        'gas_prod',
                                        'water_prod',
                                        'water_inj']]
-        prod['cash_flow'] = production.mul(prices).sum(axis=1)
-        return prod
+        self.rwo['cash_flow'] = production.mul(prices).sum(axis=1)
+        # Ajuste dos casos que rodaram com 21 anos
+        #### APAGAR DEPOIS
+        self.rwo = self.rwo[self.rwo['time'] <= 7305]
 
     def npv(self, tma, prices):
-        prod = self.add_cash_flow(prices)
-        periodic_rate = ((1 + tma) ** (1 / 365)) - 1
-        time = prod["time"].to_numpy()
+        self.add_cash_flow(prices)
+        periodic_rate = ((1 + tma) ** (1 / 365.25)) - 1
+        time = self.rwo["time"].to_numpy()
+        time = self.rwo["time"].to_numpy()
         tax = 1 / np.power((1 + periodic_rate), time)
-        return np.sum(prod.cash_flow.to_numpy() * tax)
+        return np.sum(self.rwo.cash_flow.to_numpy() * tax)
