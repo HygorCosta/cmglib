@@ -10,6 +10,7 @@ python = "^3.11"
 pytest = "^7.4.0"
 pandas = "^2.0.3"
 numpy = "^1.25.1"
+tqdm = "^4.65.0"
 
 
 [tool.poetry.group.dev.dependencies]

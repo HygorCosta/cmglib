@@ -6,7 +6,8 @@ from tqdm import tqdm
 
 class Builder:
 
-    def __init__(self, nx:int, ny:int, nz:int) -> None:
+    def __init__(self, dat_file:str, nx:int, ny:int, nz:int) -> None:
+        self.dat = dat_file
         self.nx = nx
         self.ny = ny
         self.nz = nz
@@ -144,10 +145,19 @@ class Builder:
         coor_y = np.append(coor_y, (delta_y/delta_z) * delta_zbot + pilar_y)
         coor_z = np.append(ztop, zbot)
 
-        return coor_x, coor_y, coor_z
+        self.coor = {'x':coor_x, 'y':coor_y, 'z':coor_z}
 
     def retornar_vertices_celula(self, matriz, i, j, k):
         """Retorna os vertices da celula i,j,k.
+
+            3---------2
+           /|        /|
+          / |       / |
+         0---------1  |
+         |  7------|--6
+         | /       | /
+         |/        |/
+         4---------5
 
         Args:
             matriz (np.ndarray): matriz com todas as coordenadas no formato COORD
@@ -167,3 +177,25 @@ class Builder:
         n = int(n/2)
         return np.array([matriz[pos1], matriz[pos2], matriz[pos3], matriz[pos4],
                          matriz[pos1+n], matriz[pos2+n], matriz[pos3+n], matriz[pos4+n]])
+
+    def calculate_volumes(self):
+        ncelulas = self.nx * self.ny * self.nz
+        pbar = tqdm(total=ncelulas, desc='Loading Volumes', position=0)
+        self.volumes = np.zeros((self.nx, self.ny, self.nz))
+        for k in range(self.nz):
+            for j in range(self.ny):
+                for i in range(self.nx):
+                    x = self.retornar_vertices_celula(self.coor['x'], i, j, k)
+                    y = self.retornar_vertices_celula(self.coor['y'], i, j, k)
+                    z = self.retornar_vertices_celula(self.coor['z'], i, j, k)
+
+                    u = np.array((x[1], y[1], z[1])) - np.array((x[0], y[0], z[0]))
+                    v = np.array((x[3], y[3], z[3])) - np.array((x[0], y[0], z[0]))
+                    w = np.array((x[5], y[5], z[5])) - np.array((x[0], y[0], z[0]))
+
+                    V = np.linalg.det(np.array((u, v, w)))
+                    self.volumes[i, j, k] = np.abs(V)
+                pbar.update(self.nx)
+
+    def read_dat(self):
+       pass
