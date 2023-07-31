@@ -1,11 +1,10 @@
 """ Read and write properties from CMG files."""
 import re
 import numpy as np
-import xarray as xr
 from tqdm import tqdm
 
 
-class CMG:
+class Builder:
 
     def __init__(self, nx:int, ny:int, nz:int) -> None:
         self.nx = nx
@@ -140,3 +139,31 @@ class CMG:
         delta_zbot = zbot - pilar_z
 
         coor_x = (delta_x/delta_z) * delta_ztop + pilar_x
+        coor_x = np.append(coor_x, (delta_x/delta_z) * delta_zbot + pilar_x)
+        coor_y = (delta_y/delta_z) * delta_ztop + pilar_y
+        coor_y = np.append(coor_y, (delta_y/delta_z) * delta_zbot + pilar_y)
+        coor_z = np.append(ztop, zbot)
+
+        return coor_x, coor_y, coor_z
+
+    def retornar_vertices_celula(self, matriz, i, j, k):
+        """Retorna os vertices da celula i,j,k.
+
+        Args:
+            matriz (np.ndarray): matriz com todas as coordenadas no formato COORD
+            para cada direcao
+            i (int): indice da celula na direcao x
+            j (int): indice da celula na direcao y
+            k (int): indice da celula na direcao z
+
+        Returns:
+            np.ndarray: matriz com as coordenadas dos oito vertices das celulas
+        """
+        pos1 = k*self.nx*self.ny*4 + j*self.nx*4 + i*2
+        pos2 = k*self.nx*self.ny*4 + j*self.nx*4 + i*2 + 1
+        pos3 = k*self.nx*self.ny*4 + self.nx*2 + j*self.nx*4 + i*2 + 1
+        pos4 = k*self.nx*self.ny*4 + self.nx*2 + j*self.nx*4 + i*2
+        (n,) = matriz.shape
+        n = int(n/2)
+        return np.array([matriz[pos1], matriz[pos2], matriz[pos3], matriz[pos4],
+                         matriz[pos1+n], matriz[pos2+n], matriz[pos3+n], matriz[pos4+n]])
