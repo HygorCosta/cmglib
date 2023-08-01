@@ -179,6 +179,8 @@ class Builder:
                          matriz[pos1+n], matriz[pos2+n], matriz[pos3+n], matriz[pos4+n]])
 
     def calculate_volumes(self):
+        """Calculate the volume of each cell.
+        """
         ncelulas = self.nx * self.ny * self.nz
         pbar = tqdm(total=ncelulas, desc='Loading Volumes', position=0)
         self.volumes = np.zeros((self.nx, self.ny, self.nz))
@@ -196,6 +198,3 @@ class Builder:
                     V = np.linalg.det(np.array((u, v, w)))
                     self.volumes[i, j, k] = np.abs(V)
                 pbar.update(self.nx)
-
-    def read_dat(self):
-       pass
