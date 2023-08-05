@@ -11,10 +11,12 @@ pytest = "^7.4.0"
 pandas = "^2.0.3"
 numpy = "^1.25.1"
 tqdm = "^4.65.0"
+xarray = "^2023.7.0"
 
 
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.25.0"
+notebook = "^7.0.1"
 
 [build-system]
 requires = ["poetry-core"]

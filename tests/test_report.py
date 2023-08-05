@@ -5,7 +5,7 @@ from cmglib.report import Report
 
 @pytest.fixture(name='report_obj')
 def inst_report():
-    tpl = 'cmglib\TemplateReport.tpl'
+    tpl = r'notebook\Arquivos\TemplateReport_All_Producers.tpl'
     return Report(tpl)
 
 
@@ -14,7 +14,7 @@ def test_report_info(report_obj):
 
 
 def test_basename_sr3(report_obj):
-    sr3_file = Path("cmglib\OLYMPUS_BHP_noWC_1.sr3")
+    sr3_file = Path("../notebook/Arquivos/")
     names = report_obj._cmg_files(sr3_file)
     assert names.sr3 == sr3_file
 
@@ -27,7 +27,7 @@ def test_template(report_obj):
 
 
 def test_run_report(report_obj):
-    sr3_file = Path("cmglib\OLYMPUS_BHP_noWC_1.sr3")
+    sr3_file = Path(r"C:\Users\DVOS\Documents\Github\cmglib\notebook\Arquivos\OLYMPUS_BHP_noWC_1.sr3")
     assert report_obj.run_report(sr3_file, rwo_exist_ok=True)
 
 
@@ -51,3 +51,8 @@ def test_read_npv(report_obj):
     prices = np.array([70, 0, -10, -5])
     proj_npv = report_obj.npv(tma=0.1, prices=prices)
     assert proj_npv > 0
+
+def test_rwo_parser(report_obj):
+    rwo_file = Path(r"notebook\Arquivos\OLYMPUS_BHP_noWC_1.rwo")
+    report_obj._parse_rwo(rwo_file)
+    assert 1

@@ -1,8 +1,10 @@
 """Class to run REPORT in pos-processor."""
 import logging
 import os
+import re
 import subprocess
 import pandas as pd
+import xarray as xr
 import numpy as np
 from collections import namedtuple
 from pathlib import Path
@@ -72,6 +74,57 @@ class Report:
             self._tpl_to_rwd()
         self.__call_report_exe()
         return 1
+
+    @staticmethod
+    def _atoi(text):
+        return int(text) if text.isdigit() else text
+
+    def _natural_keys(self, text):
+        return [self._atoi(c) for c in re.split(r'(\d+)', text)]
+
+    def _parse_rwo(self, rwo_file):
+        attrs = dict()
+        variables = dict()
+        with open(rwo_file, 'r+', encoding='UTF-8') as file:
+            line = file.readline()
+            dados = []
+            variables = []
+            parameters = []
+            coords = dict()
+            while line != '':
+                if line.startswith('TABLE'):
+                    table_number = line.split()[-1]
+                    file_name = file.readline().split()[-1]
+                    attrs['File'] = file_name
+                    line = file.readline()
+                    parameter = '_'.join(line.split()[1:-2]).lower()
+                    attrs[f'Table_{table_number}'] = parameter
+                    coords_aux = [file.readline().split()[0]]
+                    coords_aux = file.readline().split()
+                    line = file.readline().split()
+                    unit_time, parameter_unit = line[0], line[1]
+                    attrs[f'Time_unit'] = unit_time
+                    attrs[f'{parameter}'] = parameter_unit
+                    line = file.readline()
+                    if parameter.startswith('water'):
+                        well_type = coords_aux[0].split('-')[0].lower()
+                        parameter += f'_{well_type}'
+                if line[0].isdigit():
+                    values = [float(i) for i in line.split()]
+                    dados.append(values)
+                    line = file.readline()
+                if line.startswith('TABLE') or not line:
+                    parameters.append(parameter)
+                    dados = np.array(dados)
+                    variables.append(dados[:, 1:])
+                    time = dados[:, 0]
+                    dados = []
+            coords['time'] = time
+            prod = xr.Dataset(
+                data_vars=variables,
+                coords=coords,
+                attrs=attrs
+            )
 
     def read_rwo(self, rwo_file:str=None):
         if not rwo_file:
