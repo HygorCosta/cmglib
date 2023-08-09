@@ -1,7 +1,7 @@
 """ Read and write properties from CMG files."""
 import re
 import numpy as np
-from util import parse_all_string
+from .util import parse_all_string
 from tqdm import tqdm
 
 
