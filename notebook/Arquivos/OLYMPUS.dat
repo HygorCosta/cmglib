@@ -1,0 +1,146 @@
+********************************************************************************
+**
+** Conversao modelo OLYMPUS do Eclipse para o imex
+** Vinicius Luiz (BFU0)
+** Maio de 2017
+***
+********************************************************************************
+TITLE1 'OLYMPUS_44'
+
+*INUNIT *SI
+
+WPRN *WELL   0
+WPRN *GRID   0
+WPRN *SECTOR 0
+WPRN *ITER   *NONE
+
+OUTPRN *WELL        *BRIEF
+OUTPRN *GRID        *NONE
+OUTPRN *TABLES      *NONE
+OUTPRN *RES         *NONE
+OUTPRN *WELL-SECTOR *NONE
+
+WSRF *WELL   1
+WSRF *GRID   *TIME
+WSRF *SECTOR 1
+
+OUTSRF *WELL *LAYER *NONE
+OUTSRF *GRID *SO *SG *SW *PRES
+
+********************************************************************************
+**              *GRID*
+********************************************************************************
+*GRID  *CORNER 118 181 16
+*KDIR *DOWN
+
+RESULTS XOFFSET 518176.39
+RESULTS YOFFSET 6183215.57
+RESULTS ROTATION 0
+RESULTS AXES-DIRECTIONS 1.0 -1.0 1.0
+
+*INCLUDE '../../INCLUDES/GRID_OLYMPUS.inc'
+
+*PERMI *ALL
+*INCLUDE 'C:/INCLUDES/REALIZATIONS/OLYMPUS_44/PERMX_OLYMPUS_44.inc'
+
+*PERMJ *EQUALSI
+*PERMK *EQUALSI * 0.1
+
+*POR *ALL
+*INCLUDE 'INCLUDES/REALIZATIONS/OLYMPUS_44/PORO_OLYMPUS_44.inc'
+
+*NETGROSS *ALL
+*INCLUDE 'INCLUDES/REALIZATIONS/OLYMPUS_44/NTG_OLYMPUS_44.inc'
+
+********************************************************************************
+**              *Falhas*
+********************************************************************************
+**Modificado 12-01-18
+**Inclui fault de cada realizacao
+
+*INCLUDE 'INCLUDES/REALIZATIONS/OLYMPUS_44/TRANSF_4_44.inc'
+
+*INCLUDE 'INCLUDES/FALHAS/FALHA_4.inc'
+
+*INCLUDE 'INCLUDES/REALIZATIONS/OLYMPUS_44/TRANSF_2_44.inc'
+
+*INCLUDE 'INCLUDES/FALHAS/FALHA_2.inc'
+
+*INCLUDE 'INCLUDES/REALIZATIONS/OLYMPUS_44/TRANSF_3_44.inc'
+
+*INCLUDE 'INCLUDES/FALHAS/FALHA_3.inc'
+
+*INCLUDE 'INCLUDES/REALIZATIONS/OLYMPUS_44/TRANSF_5_44.inc'
+
+*INCLUDE 'INCLUDES/FALHAS/FALHA_5.inc'
+
+*INCLUDE 'INCLUDES/REALIZATIONS/OLYMPUS_44/TRANSF_6_44.inc'
+
+*INCLUDE 'INCLUDES/FALHAS/FALHA_6.inc'
+
+********************************************************************************
+**              *Pinched block*
+********************************************************************************
+**  0 = pinched block, 1 = active block
+*PINCHOUTARRAY ALL
+*INCLUDE 'INCLUDES/PINCH_OLYMPUS.inc'
+
+********************************************************************************
+**              *Compressibilidade*
+********************************************************************************
+*CPOR 1.4234E-07
+*PRPOR 28000
+
+****************************************************************************
+**              *FLUID MODEL
+****************************************************************************
+*MODEL *OILWATER
+*INCLUDE 'INCLUDES/PVT_OLYMPUS_new.inc'
+
+****************************************************************************
+**              *ROCKFLUID
+****************************************************************************
+*ROCKFLUID
+*INCLUDE 'INCLUDES/ROCKFLUID_OLYMPUS_new.inc'
+
+*RTYPE *ALL
+*INCLUDE 'INCLUDES/REALIZATIONS/OLYMPUS_44/SATNUM_OLYMPUS_44.inc'
+
+****************************************************************************
+**              *INITIAL
+****************************************************************************
+*INITIAL
+*VERTICAL *BLOCK_CENTER *WATER_OIL
+
+PB CON 8000
+
+*REFDEPTH 2092
+*REFPRES 20500
+*DWOC 2092
+*CONTACT_PBT_BEHAVIOR *WARNING
+
+****************************************************************************
+**              *NUMERICAL
+****************************************************************************
+*NUMERICAL
+
+*NORTH 200
+*ITERMAX 200
+
+****************************************************************************
+**              *RUN
+****************************************************************************
+*RUN
+
+*INCLUDE 'INCLUDES/WELL_CONTROL/WELL_OLYMPUS_BHP_noWC.inc'
+
+*INCLUDE 'INCLUDES/REALIZATIONS/OLYMPUS_44/WELL_OLYMPUS_44.inc'
+
+** RESTRICOES DA PLATAFORMA
+** PRODUCAO
+ *GCONP 'GROUP 1'
+ *MAX STL  14000.0
+
+*INCLUDE 'INCLUDES/SCHEDULE.inc'
+
+*STOP
