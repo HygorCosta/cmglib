@@ -391,3 +391,204 @@ class Results:
             })) for (k, v) in  prop_dict.items()}
         else:
             return sorted([var for var in (prop_dict.keys()) if (var in name_record['Packing'].keys() and name_record['Packing'][var] == 'p')])
+
+    def read_properties(self, grid_properties=None, timestep_idx=None, sr3_file=None, twophi2k=False):
+            """Read grid properties from SR3 file
+
+            Keyword Arguments:
+                grid_properties {list} -- Property or list of properties to be read (default: {None})
+                timestep_idx {list} -- List of timestep indices to be read (default: {None})
+                sr3_file {str} -- SR3 filename (default: {basename.sr3})
+                twophi2k {bool} -- Load matrix-fracture (2phi2k) properties (default: False)
+
+            Returns:
+                {xarray.DataSet} -- DataSet with desired grid properties
+            """
+
+            if sr3_file is None:
+                sr3_file = self.cmgfile.sr3
+                if os.path.isfile(sr3_file):
+                    self.parse_general_info()
+                else:
+                    print("No available sr3 file")
+
+            if isinstance(grid_properties, str):
+                grid_properties = [grid_properties]
+
+            # Read Properties
+            with h5py.File(sr3_file, "r") as f:
+                dimI = int(f["SpatialProperties/000000/GRID/IGNTID"][0])
+                dimJ = int(f["SpatialProperties/000000/GRID/IGNTJD"][0])
+                dimK = int(f["SpatialProperties/000000/GRID/IGNTKD"][0])
+                ind_valid_cells = f["SpatialProperties/000000/GRID/IPSTCS"][()] - 1
+                ind_null_cells = np.setdiff1d(
+                    np.arange(dimI * dimJ * dimK), ind_valid_cells
+                )
+
+                # Check if model is 2phi2k - Matrix-Fracture
+                if ("TRMMF" in list(f["SpatialProperties/000000"])) or twophi2k:
+                    twophi2k = True
+                    dims = (dimI, dimJ, dimK, 2)
+                    dims_size = dimI * dimJ * dimK * 2
+                    coords = {
+                        "I": np.arange(dimI),
+                        "J": np.arange(dimJ),
+                        "K": np.arange(dimK),
+                        "model": ["matrix", "fracture"],
+                    }
+                else:
+                    twophi2k = False
+                    dims = (dimI, dimJ, dimK)
+                    dims_size = dimI * dimJ * dimK
+                    coords = {
+                        "I": np.arange(dimI),
+                        "J": np.arange(dimJ),
+                        "K": np.arange(dimK),
+                    }
+
+                # List and filter timesteps
+                timestep_props = [(t, t_groups) for t, t_groups in f["SpatialProperties"].items() if t.isdigit()]
+                if timestep_idx is not None:
+                    for i in timestep_idx:
+                        if abs(i) >= len(timestep_props):
+                            raise ValueError(f'Index {i} out of range')
+                    timestep_idx = [i % len(timestep_props) for i in timestep_idx]
+                    timestep_props = [(t, t_groups) for i, (t, t_groups) in enumerate(timestep_props) if i in timestep_idx]
+
+                # read properties to list of props and timesteps
+                timesteps = []
+                props = {}
+                prop_times = {}
+                sectors = {}
+                units = {}
+                for t, t_groups in timestep_props:
+                    timesteps.append(int(t))
+                    for v, v_items in t_groups.items():
+                        if (v != "GRID") and ((grid_properties is None) or (v in grid_properties)):
+                            try:
+                                gain, offset = self._conversion_gain_offset(v)
+                                # print(f'v: {v} gain: {gain} offset: {offset}')
+                                prop = np.zeros(dims_size)
+
+                                if len(v_items[()]) == len(ind_valid_cells):
+                                    prop[ind_valid_cells] = v_items[()] * gain + offset
+                                    prop[ind_null_cells] = np.nan
+                                elif len(v_items[()]) == len(prop):
+                                    prop = v_items[()] * gain + offset
+                                else:
+                                    raise ValueError
+
+                                prop = prop.reshape(dims, order="F")
+
+                                if v not in props.keys():
+                                    props[v] = []
+                                    prop_times[v] = []
+                                props[v].append(np.nan_to_num(prop))
+                                prop_times[v].append(int(t))
+                                units[v] = self._get_output_unit(v)
+                            except:
+                                pass
+                                # print('Could not read property {}'.format(v))
+                        elif v == "GRID":
+                            for vg, vg_items in v_items.items():
+                                if (vg != "ISECTGEOM") and ((grid_properties is None) or(vg in grid_properties)):
+                                    try:
+                                        gain, offset = self._conversion_gain_offset(vg)
+                                        # print(f'vg: {vg} gain: {gain} offset: {offset}')
+                                        prop = np.zeros(dims_size)
+
+                                        if len(vg_items[()]) == len(ind_valid_cells):
+                                            prop[ind_valid_cells] = (
+                                                vg_items[()] * gain + offset
+                                            )
+                                            prop[ind_null_cells] = np.nan
+                                        elif len(vg_items[()]) == len(prop):
+                                            prop = vg_items[()] * gain + offset
+                                        else:
+                                            raise ValueError
+
+                                        prop = prop.reshape(dims, order="F")
+
+                                        if vg not in props.keys():
+                                            props[vg] = []
+                                            prop_times[vg] = []
+                                        props[vg].append(np.nan_to_num(prop))
+                                        prop_times[vg].append(int(t))
+                                        units[vg] = self._get_output_unit(vg)
+                                    except:
+                                        pass
+                                        # print('Could not read property {}'.format(vg))
+                                elif (vg == "ISECTGEOM") and ((grid_properties is None) or (("ISECTGEOM" in grid_properties) or ("SECTORARRAY" in grid_properties))):
+                                    try:
+                                        sect_array = f["SpatialProperties/000000/GRID"][
+                                            "ISECTGEOM"
+                                        ][()]
+                                        sect_index = np.where(sect_array < 0)[0]
+                                        dimSect = len(sect_index)
+                                        sect_array_bool = (
+                                            np.zeros(
+                                                (dimSect, dims_size), dtype=np.bool
+                                            )
+                                            * np.nan
+                                        )
+
+                                        for i in range(dimSect):
+                                            upper_bound = (
+                                                sect_index[i + 1]
+                                                if i + 1 < dimSect
+                                                else None
+                                            )
+                                            sect_array_bool[
+                                                i,
+                                                sect_array[
+                                                    (sect_index[i] + 1) : upper_bound
+                                                ],
+                                            ] = True
+
+                                        sectors["coords"] = {
+                                            "sector": range(dimSect),
+                                            "I": np.arange(dimI),
+                                            "J": np.arange(dimJ),
+                                            "K": np.arange(dimK),
+                                        }
+                                        sectors["values"] = sect_array_bool.reshape(
+                                            (dimSect,) + dims, order="F"
+                                        )
+                                    except:
+                                        pass
+
+                times = {
+                    col: self.general.timetable.loc[timesteps, col].values
+                    for col in self.general.timetable.columns
+                }
+                ds = xr.Dataset(coords=dict(coords, **times))
+
+                for v, value_list in props.items():
+                    t = prop_times[v]
+                    if t == [0]:
+                        ds[v] = (tuple(coords.keys()), props[v][0])
+                        ds[v].attrs["units"] = units[v] if units[v] is not None else ""
+                    elif t == timesteps:
+                        ds[v] = (("Date",) + tuple(coords.keys()), np.stack(props[v]))
+                        ds[v].attrs["units"] = units[v] if units[v] is not None else ""
+
+                if (grid_properties is None) or ("NULL" in grid_properties):
+                    null = np.zeros(dims_size)
+                    null[ind_null_cells] = 1
+                    null = null.reshape(dims, order="F")
+                    ds["NULL"] = (tuple(coords.keys()), null)
+                    ds["NULL"].attrs["units"] = ""
+
+                if sectors:
+                    ds = ds.assign_coords(coords=sectors["coords"])
+                    ds = ds.assign(
+                        SECTORARRAY=(("sector",) + tuple(coords.keys()), sectors["values"])
+                    )
+
+                if "Date" in times.keys():
+                    date = pd.to_datetime(
+                        ds.Date.values, format="%Y%m%d"
+                    ) + pd.to_timedelta(ds.Date.values - np.floor(ds.Date.values), unit="D")
+                    ds.coords["Date"] = date
+
+            return ds

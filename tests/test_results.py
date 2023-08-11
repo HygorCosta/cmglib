@@ -51,3 +51,8 @@ def test_read_timeseries_WELLS(model):
 def test_list_properties(model):
     obtido = model.list_properties()
     assert isinstance(obtido, list)
+
+def test_read_properties(model):
+    obtido = model.read_properties(['SO', 'SW'],
+                                   [0, 16])
+    assert isinstance(obtido, xr.Dataset)
