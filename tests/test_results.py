@@ -44,6 +44,11 @@ def test_read_timeseries_GROUP(model):
     obtido = model.read_timeseries('GROUPS')
     return isinstance(obtido, xr.Dataset)
 
+def test_read_timeseries_GROUP_npv(model):
+    variables = ['Qo', 'Qw']
+    obtido = model.read_timeseries('GROUPS', variables)
+    return isinstance(obtido, xr.Dataset)
+
 def test_read_timeseries_WELLS(model):
     obtido = model.read_timeseries('WELLS')
     return isinstance(obtido, xr.Dataset)
