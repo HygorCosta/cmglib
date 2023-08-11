@@ -47,3 +47,7 @@ def test_read_timeseries_GROUP(model):
 def test_read_timeseries_WELLS(model):
     obtido = model.read_timeseries('WELLS')
     return isinstance(obtido, xr.Dataset)
+
+def test_list_properties(model):
+    obtido = model.list_properties()
+    assert isinstance(obtido, list)

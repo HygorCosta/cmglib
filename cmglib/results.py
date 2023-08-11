@@ -4,7 +4,7 @@ import os
 import pandas as pd
 import re
 import xarray as xr
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from functools import lru_cache
 
 
@@ -350,3 +350,44 @@ class Results:
                 ds.coords['Date'] = date
 
             return ds
+
+    def list_properties(self, timesteps=False, descriptions=False, sr3_file=None):
+        """List grid properties from SR3 file
+
+        Keyword Arguments:
+            timesteps {bool} -- Return recorded timesteps for each property? (default: False)
+            descriptions {bool} -- Return keyword descriptions? (default: False})
+            sr3_file {str} -- SR3 filename (default: {basename.sr3})
+
+        Returns:
+            {list | pd.DataFrame} -- List of keywords available
+        """
+        if sr3_file is None:
+            sr3_file = self.cmgfile.sr3
+        if os.path.isfile(sr3_file):
+            self.parse_general_info()
+        else:
+            raise ValueError("No available sr3 file")
+
+        prop_dict = defaultdict(list)
+        with h5py.File(sr3_file, 'r') as f:
+            for k in f['SpatialProperties/000000/GRID/'].keys():
+                prop_dict[k].append(0)
+            timestep_props = [(t, t_groups) for t, t_groups in f["SpatialProperties"].items() if t.isdigit()]
+            for t, t_groups in timestep_props:
+                for k in t_groups.keys():
+                    if k != 'GRID':
+                        prop_dict[k].append(int(t))
+
+        name_record = self.general.name_record_table.set_index('Keyword').to_dict()
+
+        if descriptions:
+            return pd.DataFrame(sorted([(var, name_record['Name'][var], name_record['Long Name'][var]) for var in (prop_dict.keys()) if (var in name_record['Packing'].keys() and name_record['Packing'][var] == 'p')]),
+                            columns=['keyword', 'name', 'long_name'])
+        if timesteps:
+            return {k: pd.DataFrame(dict(**{'idx': range(len(v)), 'idx_timetable': v}, **{
+                col: self.general.timetable.loc[v, col].values
+                for col in self.general.timetable.columns
+            })) for (k, v) in  prop_dict.items()}
+        else:
+            return sorted([var for var in (prop_dict.keys()) if (var in name_record['Packing'].keys() and name_record['Packing'][var] == 'p')])
